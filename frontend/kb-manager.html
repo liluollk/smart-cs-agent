@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知识库管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #F0F2F5;
+      color: #1F1F1F;
+      min-height: 100vh;
+    }
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1::before {
+      content: '📚';
+      font-size: 28px;
+    }
+    .upload-btn {
+      padding: 10px 20px;
+      background: #1677FF;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover { background: #4096FF; }
+
+    /* 搜索栏 */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid #E8E8E8;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: #1677FF; }
+    .category-filter {
+      padding: 10px 16px;
+      border: 1px solid #E8E8E8;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #FFFFFF;
+      cursor: pointer;
+    }
+
+    /* 统计卡片 */
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      flex: 1;
+      background: #FFFFFF;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #E8E8E8;
+    }
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1677FF;
+      margin-bottom: 4px;
+    }
+    .stat-card .label {
+      font-size: 13px;
+      color: #8C8C8C;
+    }
+
+    /* 文档列表 */
+    .doc-list {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E8E8E8;
+      overflow: hidden;
+    }
+    .doc-list-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+      padding: 16px 20px;
+      background: #FAFAFA;
+      border-bottom: 1px solid #E8E8E8;
+      font-size: 13px;
+      color: #8C8C8C;
+      font-weight: 500;
+    }
+    .doc-item {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+      padding: 16px 20px;
+      border-bottom: 1px solid #F5F5F5;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-item:hover { background: #FAFAFA; }
+    .doc-name {
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .doc-name .icon { font-size: 18px; }
+    .doc-category {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .doc-category.product { background: #E8F0FF; color: #1677FF; }
+    .doc-category.refund { background: #FFF7E6; color: #FA8C16; }
+    .doc-category.account { background: #F6FFED; color: #52C41A; }
+    .doc-category.general { background: #F5F5F5; color: #595959; }
+    .doc-date { font-size: 13px; color: #8C8C8C; }
+    .doc-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-btn.view {
+      background: #E8F0FF;
+      color: #1677FF;
+      border: none;
+    }
+    .action-btn.view:hover { background: #D6E4FF; }
+    .action-btn.delete {
+      background: #FFF2F0;
+      color: #FF4D4F;
+      border: none;
+    }
+    .action-btn.delete:hover { background: #FFCCC7; }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #8C8C8C;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h2 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+
+    /* 上传模态框 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal {
+      background: #FFFFFF;
+      border-radius: 12px;
+      width: 560px;
+      max-width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #E8E8E8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h2 { font-size: 18px; font-weight: 600; }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #8C8C8C;
+      cursor: pointer;
+      padding: 4px;
+    }
+    .modal-body { padding: 24px; }
+
+    /* 拖拽上传区域 */
+    .upload-area {
+      border: 2px dashed #D9D9D9;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #1677FF;
+      background: #E8F0FF;
+    }
+    .upload-area .icon { font-size: 36px; margin-bottom: 12px; }
+    .upload-area p { font-size: 14px; color: #8C8C8C; }
+    .upload-area .hint { font-size: 12px; color: #BFBFBF; margin-top: 8px; }
+
+    /* 表单 */
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #1F1F1F;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #E8E8E8;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: #1677FF; }
+    .form-control textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: inherit;
+    }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #E8E8E8;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .btn-cancel {
+      padding: 10px 20px;
+      background: #FFFFFF;
+      border: 1px solid #D9D9D9;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-cancel:hover { border-color: #BFBFBF; }
+    .btn-submit {
+      padding: 10px 20px;
+      background: #1677FF;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-submit:hover { background: #4096FF; }
+    .btn-submit:disabled { background: #BFBFBF; cursor: not-allowed; }
+
+    /* 上传进度 */
+    .upload-progress {
+      margin-top: 16px;
+    }
+    .progress-bar {
+      height: 6px;
+      background: #F5F5F5;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: #1677FF;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .progress-text { font-size: 12px; color: #8C8C8C; }
+
+    /* Toast 提示 */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 2000;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .toast.success { background: #F6FFED; color: #52C41A; border: 1px solid #B7EB8F; }
+    .toast.error { background: #FFF2F0; color: #FF4D4F; border: 1px solid #FFCCC7; }
+    .toast.info { background: #E8F0FF; color: #1677FF; border: 1px solid #BFBFFF; }
+
+    /* 文件列表 */
+    .file-list { margin-top: 12px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #FAFAFA;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .file-item .name { flex: 1; font-size: 13px; }
+    .file-item .size { font-size: 12px; color: #8C8C8C; }
+    .file-item .remove {
+      background: none;
+      border: none;
+      color: #FF4D4F;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <div class="page">
+    <div class="header">
+      <h1>知识库管理</h1>
+      <button class="upload-btn" onclick="openModal()">+ 上传文档</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="value" id="statTotal">0</div>
+        <div class="label">文档总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="statProduct">0</div>
+        <div class="label">产品文档</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="statRefund">0</div>
+        <div class="label">退款文档</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="statAccount">0</div>
+        <div class="label">开户文档</div>
+      </div>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <input class="search-input" id="searchInput" placeholder="🔍 搜索文档名称或内容..." oninput="filterDocs()" />
+      <select class="category-filter" id="categoryFilter" onchange="filterDocs()">
+        <option value="">全部分类</option>
+        <option value="product">产品</option>
+        <option value="refund">退款</option>
+        <option value="account">开户</option>
+        <option value="general">通用</option>
+      </select>
+    </div>
+
+    <!-- 文档列表 -->
+    <div class="doc-list" id="docList">
+      <div class="doc-list-header">
+        <div>文档名称</div>
+        <div>分类</div>
+        <div>创建时间</div>
+        <div>操作</div>
+      </div>
+      <div id="docItems"></div>
+    </div>
+  </div>
+
+  <!-- 上传模态框 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>上传知识库文档</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- 拖拽上传 -->
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">📎</div>
+          <p>拖拽文件到此处，或点击选择文件</p>
+          <div class="hint">支持 .txt、.md、.pdf 格式，单个文件不超过 10MB</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".txt,.md,.pdf" style="display:none" onchange="handleFiles(this.files)" />
+
+        <!-- 文件列表 -->
+        <div class="file-list" id="fileList"></div>
+
+        <!-- 表单 -->
+        <div class="form-group" style="margin-top: 16px;">
+          <label>文档标题</label>
+          <input class="form-control" id="docTitle" placeholder="请输入文档标题" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>分类</label>
+            <select class="form-control" id="docCategory">
+              <option value="product">产品</option>
+              <option value="refund">退款</option>
+              <option value="account">开户</option>
+              <option value="general">通用</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>内容（可选，不填则从文件提取）</label>
+          <textarea class="form-control" id="docContent" placeholder="或直接上传文件，系统会自动提取内容"></textarea>
+        </div>
+
+        <!-- 上传进度 -->
+        <div class="upload-progress" id="uploadProgress" style="display:none">
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="progressBarFill" style="width:0%"></div>
+          </div>
+          <div class="progress-text" id="progressText">正在处理...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-submit" id="submitBtn" onclick="submitDoc()" disabled>上传</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+
+    let documents = [];
+    let selectedFiles = [];
+
+    // ─── 初始化 ───
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDocs();
+    });
+
+    // ─── 加载文档列表 ───
+    async function loadDocs() {
+      showLoading();
+      try {
+        const res = await fetch(`${API_BASE}/api/kb/list`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        documents = await res.json();
+        filterDocs();
+      } catch (err) {
+        console.error('加载文档失败:', err);
+        showToast('加载文档失败，请确认后端服务已启动', 'error');
+        renderDocs([]);
+      }
+    }
+
+    // ─── 渲染 ───
+
+    function renderDocs(data) {
+      const container = document.getElementById('docItems');
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h2>暂无文档</h2><p>点击右上角"上传文档"添加知识库内容</p></div>';
+        updateStats([]);
+        return;
+      }
+
+      container.innerHTML = data.map(doc => `
+        <div class="doc-item">
+          <div class="doc-name">
+            <span class="icon">${getCategoryIcon(doc.category)}</span>
+            <span>${doc.title || doc.name}</span>
+          </div>
+          <div><span class="doc-category ${doc.category}">${getCategoryLabel(doc.category)}</span></div>
+          <div class="doc-date">${formatDate(doc.created_at)}</div>
+          <div class="doc-actions">
+            <button class="action-btn view" onclick="viewDoc('${doc.doc_id}')">查看</button>
+            <button class="action-btn delete" onclick="deleteDoc('${doc.doc_id}')">删除</button>
+          </div>
+        </div>
+      `).join('');
+
+      updateStats(data);
+    }
+
+    function updateStats(data) {
+      document.getElementById('statTotal').textContent = data ? data.length : documents.length;
+      document.getElementById('statProduct').textContent = (data || documents).filter(d => d.category === 'product').length;
+      document.getElementById('statRefund').textContent = (data || documents).filter(d => d.category === 'refund').length;
+      document.getElementById('statAccount').textContent = (data || documents).filter(d => d.category === 'account').length;
+    }
+
+    function getCategoryIcon(cat) {
+      const icons = { product: '💰', refund: '🔄', account: '📝', general: '📄' };
+      return icons[cat] || '📄';
+    }
+
+    function getCategoryLabel(cat) {
+      const labels = { product: '产品', refund: '退款', account: '开户', general: '通用' };
+      return labels[cat] || '未知';
+    }
+
+    function formatDate(isoStr) {
+      if (!isoStr) return '—';
+      const d = new Date(isoStr);
+      return d.toISOString().split('T')[0];
+    }
+
+    function filterDocs() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const category = document.getElementById('categoryFilter').value;
+
+      const filtered = documents.filter(doc => {
+        const matchKeyword = !keyword || doc.name.toLowerCase().includes(keyword) ||
+          (doc.title && doc.title.toLowerCase().includes(keyword)) ||
+          (doc.content && doc.content.toLowerCase().includes(keyword));
+        const matchCategory = !category || doc.category === category;
+        return matchKeyword && matchCategory;
+      });
+
+      renderDocs(filtered);
+    }
+
+    function showLoading() {
+      document.getElementById('docItems').innerHTML =
+        '<div class="empty-state"><div class="icon">⏳</div><h2>加载中...</h2></div>';
+    }
+
+    // ─── 模态框 ───
+
+    function openModal() {
+      document.getElementById('modalOverlay').classList.add('visible');
+      document.getElementById('uploadArea').addEventListener('dragover', (e) => {
+        e.preventDefault();
+        document.getElementById('uploadArea').classList.add('dragover');
+      });
+      document.getElementById('uploadArea').addEventListener('dragleave', () => {
+        document.getElementById('uploadArea').classList.remove('dragover');
+      });
+      document.getElementById('uploadArea').addEventListener('drop', (e) => {
+        e.preventDefault();
+        document.getElementById('uploadArea').classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+      });
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('visible');
+      document.getElementById('fileInput').value = '';
+      selectedFiles = [];
+      document.getElementById('fileList').innerHTML = '';
+      document.getElementById('docTitle').value = '';
+      document.getElementById('docContent').value = '';
+      document.getElementById('uploadProgress').style.display = 'none';
+      document.getElementById('submitBtn').disabled = true;
+    }
+
+    function handleFiles(files) {
+      for (let file of files) {
+        if (!['.txt', '.md', '.pdf'].some(ext => file.name.toLowerCase().endsWith(ext))) {
+          showToast(`不支持的文件格式：${file.name}`, 'error');
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          showToast(`${file.name} 超过 10MB 限制`, 'error');
+          continue;
+        }
+        selectedFiles.push(file);
+      }
+      renderFileList();
+    }
+
+    function renderFileList() {
+      const container = document.getElementById('fileList');
+      if (selectedFiles.length === 0) {
+        container.innerHTML = '';
+        document.getElementById('submitBtn').disabled = true;
+        return;
+      }
+      container.innerHTML = selectedFiles.map((file, i) => `
+        <div class="file-item">
+          <span class="name">${file.name}</span>
+          <span class="size">${formatSize(file.size)}</span>
+          <button class="remove" onclick="removeFile(${i})">×</button>
+        </div>
+      `).join('');
+      document.getElementById('submitBtn').disabled = false;
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderFileList();
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    // ─── 提交 ───
+
+    async function submitDoc() {
+      const btn = document.getElementById('submitBtn');
+      const progress = document.getElementById('uploadProgress');
+      const progressFill = document.getElementById('progressBarFill');
+      const progressText = document.getElementById('progressText');
+
+      btn.disabled = true;
+      progress.style.display = 'block';
+
+      // 读取文件内容
+      let content = document.getElementById('docContent').value.trim();
+      if (!content && selectedFiles.length > 0) {
+        content = await readFileContent(selectedFiles[0]);
+      }
+
+      if (!content) {
+        showToast('请输入文档内容或上传文件', 'error');
+        return;
+      }
+
+      const title = document.getElementById('docTitle').value.trim() || (selectedFiles[0] ? selectedFiles[0].name : '未命名文档');
+      const category = document.getElementById('docCategory').value;
+
+      // 模拟上传进度
+      for (let p = 0; p <= 100; p += 10) {
+        progressFill.style.width = p + '%';
+        progressText.textContent = p < 100 ? `正在上传 ${p}%...` : '正在向量化处理...';
+        await sleep(100);
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/kb/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, category, content, source: selectedFiles[0] ? selectedFiles[0].name : '' })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || '上传失败');
+        }
+
+        showToast('文档上传成功，已自动向量化入库', 'success');
+        closeModal();
+        loadDocs(); // 重新加载列表
+
+      } catch (err) {
+        console.error('上传失败:', err);
+        showToast(`上传失败：${err.message}`, 'error');
+        btn.disabled = false;
+        progress.style.display = 'none';
+      }
+    }
+
+    async function readFileContent(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    // ─── 查看/删除 ───
+
+    function viewDoc(id) {
+      const doc = documents.find(d => d.doc_id === id);
+      if (!doc) return;
+      alert(`文档：${doc.title}\n分类：${getCategoryLabel(doc.category)}\n创建时间：${formatDate(doc.created_at)}\n内容：${doc.content.substring(0, 500)}${doc.content.length > 500 ? '...' : ''}`);
+    }
+
+    async function deleteDoc(id) {
+      if (!confirm('确定要删除这个文档吗？删除后无法恢复。')) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/kb/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || '删除失败');
+        }
+
+        documents = documents.filter(d => d.doc_id !== id);
+        filterDocs();
+        showToast('文档已删除', 'info');
+
+      } catch (err) {
+        console.error('删除失败:', err);
+        showToast(`删除失败：${err.message}`, 'error');
+      }
+    }
+
+    // ─── Toast ───
+
+    function showToast(msg, type) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast ' + type;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  </script>
+</body>
+</html>

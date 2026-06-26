@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能客服 - 多Agent系统</title>
+    <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-sidebar: #fafafa;
+            --bg-chat: #ffffff;
+            --bg-card: #ffffff;
+            --bg-bubble-assistant: #f5f7fa;
+            --bg-bubble-user: #3038dd;
+            --bg-input: #f5f5f5;
+            --text-primary: #1f1f1f;
+            --text-secondary: #626262;
+            --text-muted: #a6a6a6;
+            --accent: #3038dd;
+            --accent-hover: #2028aa;
+            --accent-light: rgba(48, 56, 221, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #ededed;
+            --border-light: #f0f0f0;
+            --radius: 8px;
+            --radius-sm: 6px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+            --transition: 0.18s ease;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            background: var(--bg-primary);
+            height: 100vh; display: flex; overflow: hidden;
+            color: var(--text-primary);
+        }
+
+        .sidebar {
+            width: 260px; background: var(--bg-sidebar);
+            display: flex; flex-direction: column; flex-shrink: 0;
+            border-right: 1px solid var(--border);
+        }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-header .logo {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 18px; font-weight: 700; color: var(--text-primary);
+        }
+        .sidebar-header .logo .icon {
+            width: 36px; height: 36px; background: var(--accent);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .sidebar-header .badge {
+            font-size: 10px; font-weight: 600; padding: 3px 8px;
+            background: var(--accent-light); color: var(--accent);
+            border-radius: 20px; margin-left: 8px;
+        }
+        .sidebar-nav { flex: 1; padding: 12px; overflow-y: auto; }
+        .sidebar-nav .nav-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer;
+            font-size: 14px; transition: var(--transition); margin-bottom: 2px;
+        }
+        .sidebar-nav .nav-item:hover { background: var(--bg-input); color: var(--text-primary); }
+        .sidebar-nav .nav-item.active { background: var(--accent-light); color: var(--accent); }
+        .sidebar-nav .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+        .sidebar-nav .nav-item .nav-badge {
+            margin-left: auto; font-size: 10px; padding: 2px 7px;
+            border-radius: 10px; background: var(--accent); color: #fff;
+        }
+
+        .main-area {
+            flex: 1; display: flex; flex-direction: column; min-width: 0;
+        }
+
+        .top-bar {
+            padding: 14px 24px; background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .top-bar .title {
+            font-size: 15px; font-weight: 600; color: var(--text-primary);
+        }
+        .top-bar .title .subtitle {
+            font-weight: 400; color: var(--text-secondary); font-size: 13px; margin-left: 8px;
+        }
+        .top-bar .actions { display: flex; gap: 8px; align-items: center; }
+        .top-bar .actions button {
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+            background: transparent; color: var(--text-secondary); cursor: pointer;
+            font-size: 13px; transition: var(--transition);
+        }
+        .top-bar .actions button:hover { background: var(--border); color: var(--text-primary); }
+        .top-bar .actions button.primary {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+        .top-bar .actions button.primary:hover { background: var(--accent-hover); }
+
+        .content-area {
+            flex: 1; display: flex; padding: 16px; gap: 16px; overflow: hidden;
+        }
+
+        .chat-panel {
+            flex: 1; display: flex; flex-direction: column; min-width: 0;
+            background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .chat-panel .messages {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 16px;
+            background: var(--bg-chat);
+        }
+        .chat-panel .messages::-webkit-scrollbar { width: 6px; }
+        .chat-panel .messages::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+        .msg {
+            display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .msg.assistant { align-self: flex-start; }
+        .msg .avatar {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .msg.user .avatar { background: var(--accent-light); color: var(--accent); }
+        .msg.assistant .avatar { background: var(--bg-bubble-assistant); color: var(--text-secondary); }
+        .msg .bubble {
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            font-size: 14px; line-height: 1.65; word-break: break-word;
+        }
+        .msg.user .bubble {
+            background: var(--bg-bubble-user); color: #fff;
+            border-bottom-right-radius: 2px;
+        }
+        .msg.assistant .bubble {
+            background: var(--bg-bubble-assistant); color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-bottom-left-radius: 2px;
+        }
+        .msg .bubble .meta {
+            font-size: 11px; margin-top: 6px; opacity: 0.7;
+        }
+        .msg.assistant .bubble .meta { color: var(--text-muted); }
+        .msg.error .bubble { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+        .typing {
+            align-self: flex-start; display: flex; gap: 6px; padding: 8px 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        .typing .dot-anim {
+            width: 7px; height: 7px; border-radius: 50%; background: #c0c0c0;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing .dot-anim:nth-child(1) { animation-delay: -0.32s; }
+        .typing .dot-anim:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%,80%,100% { transform: scale(0.6); } 40% { transform: scale(1); } }
+
+        .input-area {
+            display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+        .input-area .input-wrap {
+            flex: 1; display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border: 1.5px solid var(--border);
+            border-radius: 24px; background: var(--bg-input); transition: var(--transition);
+        }
+        .input-area .input-wrap:focus-within {
+            border-color: var(--accent); background: var(--bg-chat);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+        .input-area .input-wrap input {
+            flex: 1; border: none; background: transparent; font-size: 14px;
+            outline: none; color: var(--text-primary);
+        }
+        .input-area .input-wrap input::placeholder { color: var(--text-muted); }
+        .input-area .send-btn {
+            width: 40px; height: 40px; border: none; border-radius: 50%;
+            background: var(--accent); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--transition); flex-shrink: 0;
+        }
+        .input-area .send-btn:hover { background: var(--accent-hover); }
+        .input-area .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .input-area .send-btn svg { width: 18px; height: 18px; }
+
+        .upload-toast {
+            position: fixed; bottom: 100px; right: 24px;
+            padding: 10px 16px; border-radius: 8px; font-size: 13px;
+            z-index: 999; animation: fadeIn 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+        .upload-toast.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+        .upload-toast.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .right-panel {
+            width: 380px; display: flex; flex-direction: column; gap: 14px;
+            flex-shrink: 0; overflow-y: auto;
+        }
+        .right-panel::-webkit-scrollbar { width: 4px; }
+        .right-panel::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+
+        .card {
+            background: var(--bg-card); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 16px; display: flex;
+            flex-direction: column;
+        }
+        .card-tabs {
+            display: flex; gap: 0; border-bottom: 1px solid var(--border);
+            margin: -16px -16px 14px -16px; padding: 0 12px;
+            flex-shrink: 0;
+        }
+        .card-tabs .tab-btn {
+            padding: 11px 14px; font-size: 12px; font-weight: 500;
+            color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+            transition: var(--transition); white-space: nowrap;
+        }
+        .card-tabs .tab-btn:hover { color: var(--text-primary); }
+        .card-tabs .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .card-tab-content { flex: 1; overflow-y: auto; min-height: 0; display: none; }
+        .card-tab-content.active { display: block; }
+        .card-tab-content::-webkit-scrollbar { width: 4px; }
+        .card-tab-content::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+        .card-tab-content .card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .card-tab-content .card-header h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .card-tab-content .card-header .card-badge {
+            font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+        }
+        .card-tab-content .card-header .card-badge.success { background: #ecfdf5; color: #065f46; }
+        .card-tab-content .card-header .card-badge.error { background: #fef2f2; color: #991b1b; }
+        .card-tab-content .card-header .card-badge.neutral { background: #f3f4f6; color: #6b7280; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item { padding: 8px 10px; background: var(--bg-input); border-radius: 6px; }
+        .info-item .info-label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+        .info-item .info-value {
+            font-size: 13px; font-weight: 600; color: var(--text-primary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .info-item .info-value.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+
+        .stat-row { display: flex; gap: 8px; }
+        .stat-card {
+            flex: 1; text-align: center; padding: 12px 8px;
+            background: var(--bg-input); border-radius: var(--radius-sm);
+        }
+        .stat-card .stat-num { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+        .stat-card .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        .trace-container { }
+        .trace-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 10px; font-size: 12px; color: var(--text-secondary);
+        }
+        .trace-waterfall { }
+        .trace-row {
+            display: flex; align-items: center; gap: 8px; padding: 6px 0;
+            border-bottom: 1px solid var(--border); font-size: 12px;
+        }
+        .trace-row:last-child { border-bottom: none; }
+        .trace-row .trace-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+        .trace-row .trace-dot.success { background: var(--success); }
+        .trace-row .trace-dot.error { background: var(--error); }
+        .trace-row .trace-name {
+            width: 90px; font-weight: 500; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+        }
+        .trace-row .trace-bar-wrap {
+            flex: 1; height: 20px; background: var(--bg-input);
+            border-radius: 4px; overflow: hidden; position: relative;
+        }
+        .trace-row .trace-bar {
+            height: 100%; border-radius: 4px; transition: width 0.4s ease;
+            min-width: 3px;
+        }
+        .trace-row .trace-bar.success { background: linear-gradient(90deg, #a7f3d0, var(--success)); }
+        .trace-row .trace-bar.error { background: linear-gradient(90deg, #fecaca, var(--error)); }
+        .trace-row .trace-bar.warning { background: linear-gradient(90deg, #fde68a, var(--warning)); }
+        .trace-row .trace-meta {
+            width: 100px; text-align: right; flex-shrink: 0;
+            color: var(--text-secondary); font-size: 11px;
+        }
+        .trace-row .trace-meta .tk {
+            display: block; color: var(--text-muted); font-size: 10px;
+        }
+        .trace-empty {
+            text-align: center; padding: 20px; color: var(--text-muted);
+            font-size: 13px;
+        }
+        .trace-empty .trace-empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+        .doc-list { }
+        .doc-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+            margin-bottom: 6px; cursor: pointer; transition: var(--transition);
+        }
+        .doc-item:hover { border-color: var(--accent); background: var(--accent-light); }
+        .doc-item .doc-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0;
+        }
+        .doc-item .doc-icon.pdf { background: #fef2f2; }
+        .doc-item .doc-icon.docx { background: #eff6ff; }
+        .doc-item .doc-icon.md { background: #f0fdf4; }
+        .doc-item .doc-icon.txt { background: #f8fafc; }
+        .doc-item .doc-info { flex: 1; min-width: 0; }
+        .doc-item .doc-title {
+            font-size: 13px; font-weight: 600; color: var(--text-primary);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .doc-item .doc-meta {
+            font-size: 11px; color: var(--text-muted); margin-top: 2px;
+            display: flex; gap: 10px;
+        }
+        .doc-item .doc-actions {
+            display: flex; gap: 4px; flex-shrink: 0;
+        }
+        .doc-item .doc-actions button {
+            width: 28px; height: 28px; border: none; border-radius: 6px;
+            background: transparent; cursor: pointer; font-size: 14px;
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--transition);
+        }
+        .doc-item .doc-actions button:hover { background: var(--bg-input); }
+        .doc-item .doc-actions button.del:hover { background: #fef2f2; }
+
+        .doc-empty {
+            text-align: center; padding: 30px 16px; color: var(--text-muted); font-size: 13px;
+        }
+        .doc-empty .doc-empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal {
+            background: var(--bg-card); border-radius: 12px; width: 720px;
+            max-height: 80vh; display: flex; flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15); animation: fadeIn 0.25s ease;
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+        }
+        .modal-header h3 { font-size: 16px; font-weight: 600; }
+        .modal-header .modal-close {
+            width: 32px; height: 32px; border: none; border-radius: 8px;
+            background: transparent; cursor: pointer; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--transition);
+        }
+        .modal-header .modal-close:hover { background: var(--bg-input); }
+        .modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+        .modal-body::-webkit-scrollbar { width: 6px; }
+        .modal-body::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+        .doc-content {
+            font-size: 13px; line-height: 1.7; color: var(--text-primary);
+            white-space: pre-wrap; word-break: break-word;
+            background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm);
+            max-height: 300px; overflow-y: auto;
+        }
+        .doc-content::-webkit-scrollbar { width: 4px; }
+        .doc-content::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+
+        .chunk-list { margin-top: 16px; }
+        .chunk-item {
+            border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+            margin-bottom: 8px; overflow: hidden;
+        }
+        .chunk-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; background: var(--bg-input); cursor: pointer;
+            font-size: 12px; transition: var(--transition);
+        }
+        .chunk-header:hover { background: var(--border); }
+        .chunk-header .chunk-label { font-weight: 600; color: var(--text-primary); }
+        .chunk-header .chunk-info { color: var(--text-muted); }
+        .chunk-header .chunk-arrow { transition: transform 0.2s; }
+        .chunk-header .chunk-arrow.open { transform: rotate(90deg); }
+        .chunk-body {
+            padding: 12px; font-size: 12px; line-height: 1.65;
+            color: var(--text-secondary); white-space: pre-wrap; word-break: break-word;
+            border-top: 1px solid var(--border-light);
+            max-height: 200px; overflow-y: auto;
+        }
+        .chunk-body::-webkit-scrollbar { width: 4px; }
+        .chunk-body::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+        .chunk-body.hidden { display: none; }
+
+        .tab-bar {
+            display: flex; gap: 0; border-bottom: 1px solid var(--border);
+        }
+        .tab-bar .tab {
+            padding: 10px 20px; font-size: 13px; font-weight: 500;
+            color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+        .tab-bar .tab:hover { color: var(--text-primary); }
+        .tab-bar .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        @media (max-width: 1100px) {
+            .right-panel { display: none; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .content-area { padding: 8px; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="icon">🤖</span>
+                <span>SmartCS</span>
+                <span class="badge">v2</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" onclick="newSession()">
+                <span class="nav-icon">💬</span> 新建会话
+            </div>
+        </nav>
+    </aside>
+
+    <div class="main-area">
+        <header class="top-bar">
+            <div class="title">
+                智能客服多Agent系统
+                <span class="subtitle">— 知识检索 · 合规审查 · 智能路由</span>
+            </div>
+            <div class="actions">
+                <button class="primary" onclick="document.getElementById('fileInput').click()">📎 上传文件</button>
+                <button onclick="newSession()">🔄 新建会话</button>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="chat-panel">
+                <div class="messages" id="messages">
+                    <div class="msg assistant">
+                        <div class="avatar">🤖</div>
+                        <div class="bubble">
+                            您好！我是智能客服助手，可以帮您咨询产品、办理业务、查询账户。<br>请问有什么可以帮您的？
+                        </div>
+                    </div>
+                </div>
+                <div class="input-area">
+                    <div class="input-wrap">
+                        <input type="text" id="userInput" placeholder="输入您的问题，按 Enter 发送..."
+                               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
+                    </div>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="发送">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="card">
+                    <div class="card-tabs">
+                        <div class="tab-btn active" data-tab="tabInfo" onclick="switchCardTab('tabInfo')">📊 会话信息</div>
+                        <div class="tab-btn" data-tab="tabTrace" onclick="switchCardTab('tabTrace')">🔍 追踪</div>
+                        <div class="tab-btn" data-tab="tabDocs" onclick="switchCardTab('tabDocs')">📁 知识库</div>
+                    </div>
+
+                    <div class="card-tab-content active" id="tabInfo">
+                        <div class="card-header">
+                            <h3>📊 会话信息</h3>
+                            <span class="card-badge neutral" id="complianceBadge">等待中</span>
+                        </div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">会话ID</div>
+                                <div class="info-value mono" id="sessionId">-</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">追踪ID</div>
+                                <div class="info-value mono" id="traceId">-</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">合规状态</div>
+                                <div class="info-value" id="compliance">-</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">响应时间</div>
+                                <div class="info-value" id="responseTime">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-row" style="margin-top:12px">
+                            <div class="stat-card">
+                                <div class="stat-num" id="msgCount">0</div>
+                                <div class="stat-label">消息数</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-num" id="tokenCount">0</div>
+                                <div class="stat-label">Token</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-num" id="spanCount">0</div>
+                                <div class="stat-label">Span</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-tab-content" id="tabTrace">
+                        <div class="card-header">
+                            <h3>🔍 全链路追踪</h3>
+                            <span class="card-badge neutral" id="traceStatusBadge">-</span>
+                        </div>
+                        <div class="trace-container">
+                            <div class="trace-header" id="traceTotal"></div>
+                            <div class="trace-waterfall" id="traceWaterfall"></div>
+                            <div class="trace-empty" id="traceEmpty">
+                                <div class="trace-empty-icon">📡</div>
+                                发送消息后，这里将显示调用链瀑布图
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-tab-content" id="tabDocs">
+                        <div class="card-header">
+                            <h3>📁 知识库文件</h3>
+                            <span class="card-badge neutral" id="docCountBadge">0</span>
+                        </div>
+                        <div class="doc-list" id="docList">
+                            <div class="doc-empty">
+                                <div class="doc-empty-icon">📂</div>
+                                点击上方"上传文件"添加文档
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".pdf,.docx,.md,.txt" style="display:none" onchange="uploadFile()">
+
+    <div class="modal-overlay hidden" id="docModal" onclick="if(event.target===this)closeDocModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">文档详情</h3>
+                <button class="modal-close" onclick="closeDocModal()">✕</button>
+            </div>
+            <div class="tab-bar">
+                <div class="tab active" id="tabContent" onclick="switchTab('content')">📄 文档内容</div>
+                <div class="tab" id="tabChunks" onclick="switchTab('chunks')">🧩 分块详情 <span id="chunkCountInTab"></span></div>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        let sessionId = null;
+        let msgCount = 0;
+        let currentTraceId = null;
+        let currentDocId = null;
+        let currentDocChunks = [];
+
+        function getFileIcon(filename) {
+            const ext = filename ? filename.split('.').pop().toLowerCase() : '';
+            if (ext === 'pdf') return { icon: '📕', cls: 'pdf' };
+            if (ext === 'docx') return { icon: '📘', cls: 'docx' };
+            if (ext === 'md') return { icon: '📝', cls: 'md' };
+            return { icon: '📄', cls: 'txt' };
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        async function loadDocuments() {
+            try {
+                const resp = await fetch(`${API}/v1/documents`);
+                const data = await resp.json();
+                if (data.documents) {
+                    renderDocList(data.documents);
+                    document.getElementById('docCountBadge').textContent = data.total;
+                }
+            } catch (e) {
+                console.error('获取文档列表失败:', e);
+            }
+        }
+
+        function renderDocList(docs) {
+            const container = document.getElementById('docList');
+            if (!docs || docs.length === 0) {
+                container.innerHTML = `
+                    <div class="doc-empty">
+                        <div class="doc-empty-icon">📂</div>
+                        点击上方"上传文件"添加文档
+                    </div>`;
+                return;
+            }
+            container.innerHTML = docs.map(doc => {
+                const fi = getFileIcon(doc.source || doc.title);
+                const date = doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '';
+                return `<div class="doc-item" onclick="openDocModal('${doc.doc_id}')">
+                    <div class="doc-icon ${fi.cls}">${fi.icon}</div>
+                    <div class="doc-info">
+                        <div class="doc-title">${doc.title || doc.source || '未命名'}</div>
+                        <div class="doc-meta">
+                            <span>${doc.chunk_count} 块</span>
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                    <div class="doc-actions">
+                        <button title="查看" onclick="event.stopPropagation();openDocModal('${doc.doc_id}')">👁</button>
+                        <button class="del" title="删除" onclick="event.stopPropagation();deleteDoc('${doc.doc_id}')">🗑</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function openDocModal(docId) {
+            currentDocId = docId;
+            document.getElementById('docModal').classList.remove('hidden');
+            document.getElementById('tabContent').classList.add('active');
+            document.getElementById('tabChunks').classList.remove('active');
+
+            try {
+                const [docResp, chunksResp] = await Promise.all([
+                    fetch(`${API}/v1/documents/${docId}`),
+                    fetch(`${API}/v1/documents/${docId}/chunks`),
+                ]);
+                const doc = await docResp.json();
+                const chunksData = await chunksResp.json();
+
+                document.getElementById('modalTitle').textContent = doc.title || doc.source || '文档详情';
+                document.getElementById('chunkCountInTab').textContent = `(${chunksData.total_chunks})`;
+                currentDocChunks = chunksData.chunks || [];
+
+                renderModalContent(doc);
+            } catch (e) {
+                document.getElementById('modalBody').innerHTML = `<div style="color:var(--error)">加载失败: ${e.message}</div>`;
+            }
+        }
+
+        function renderModalContent(doc) {
+            const body = document.getElementById('modalBody');
+            body.innerHTML = `
+                <div style="margin-bottom:12px;display:flex;gap:12px;font-size:12px;color:var(--text-muted)">
+                    <span>来源: ${doc.source || '-'}</span>
+                    <span>分类: ${doc.category || '-'}</span>
+                    <span>创建: ${doc.created_at ? new Date(doc.created_at).toLocaleString() : '-'}</span>
+                </div>
+                <div class="doc-content">${escapeHtml(doc.content || '')}</div>
+            `;
+        }
+
+        function renderModalChunks() {
+            const body = document.getElementById('modalBody');
+            if (!currentDocChunks.length) {
+                body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">暂无分块数据</div>';
+                return;
+            }
+            body.innerHTML = `
+                <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted)">
+                    共 ${currentDocChunks.length} 个分块，点击展开查看内容
+                </div>
+                <div class="chunk-list">
+                    ${currentDocChunks.map((chunk, i) => `
+                        <div class="chunk-item">
+                            <div class="chunk-header" onclick="toggleChunk(${i})">
+                                <span class="chunk-label">Chunk #${chunk.chunk_index}</span>
+                                <span class="chunk-info">${chunk.char_count} 字符</span>
+                                <span class="chunk-arrow" id="chunkArrow${i}">▶</span>
+                            </div>
+                            <div class="chunk-body hidden" id="chunkBody${i}">${escapeHtml(chunk.content)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function toggleChunk(index) {
+            const body = document.getElementById('chunkBody' + index);
+            const arrow = document.getElementById('chunkArrow' + index);
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                arrow.classList.add('open');
+            } else {
+                body.classList.add('hidden');
+                arrow.classList.remove('open');
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tabContent').classList.toggle('active', tab === 'content');
+            document.getElementById('tabChunks').classList.toggle('active', tab === 'chunks');
+            if (tab === 'content') {
+                fetch(`${API}/v1/documents/${currentDocId}`)
+                    .then(r => r.json())
+                    .then(doc => renderModalContent(doc))
+                    .catch(e => {});
+            } else {
+                renderModalChunks();
+            }
+        }
+
+        function closeDocModal() {
+            document.getElementById('docModal').classList.add('hidden');
+            currentDocId = null;
+            currentDocChunks = [];
+        }
+
+        async function deleteDoc(docId) {
+            if (!confirm('确定删除此文档？删除后知识库中将无法检索到该文档内容。')) return;
+            try {
+                const resp = await fetch(`${API}/v1/documents/${docId}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    showUploadToast('✅ 文档已删除', 'success');
+                    loadDocuments();
+                } else {
+                    const data = await resp.json();
+                    showUploadToast('❌ 删除失败: ' + (data.detail || data.error), 'error');
+                }
+            } catch (e) {
+                showUploadToast('❌ 删除失败: ' + e.message, 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            input.value = '';
+            input.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            addMessage('user', msg);
+            const typingEl = addTyping();
+
+            const startTime = performance.now();
+
+            try {
+                const resp = await fetch(`${API}/v1/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: msg,
+                        user_id: 'web_user',
+                        session_id: sessionId || '',
+                    }),
+                });
+
+                typingEl.remove();
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('responseTime').textContent = elapsed + 's';
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    let detail = err.detail || resp.statusText;
+                    if (Array.isArray(detail)) {
+                        detail = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+                    }
+                    addMessage('assistant', '⚠️ 错误: ' + detail, true);
+                    return;
+                }
+
+                const data = await resp.json();
+                sessionId = data.session_id;
+                currentTraceId = data.trace_id;
+                document.getElementById('sessionId').textContent = (sessionId || '').substring(0, 12) + '...';
+                document.getElementById('traceId').textContent = (data.trace_id || '').substring(0, 12) + '...';
+
+                const compEl = document.getElementById('compliance');
+                const compBadge = document.getElementById('complianceBadge');
+                if (data.compliance_passed) {
+                    compEl.textContent = '✅ 通过';
+                    compBadge.textContent = '合规';
+                    compBadge.className = 'card-badge success';
+                } else {
+                    compEl.textContent = '❌ 未通过';
+                    compBadge.textContent = '不合规';
+                    compBadge.className = 'card-badge error';
+                }
+
+                addMessage('assistant', data.response);
+                msgCount++;
+                document.getElementById('msgCount').textContent = msgCount;
+
+                if (currentTraceId) {
+                    fetchTrace(currentTraceId);
+                }
+            } catch (e) {
+                typingEl.remove();
+                addMessage('assistant', '⚠️ 网络错误: ' + e.message, true);
+            }
+
+            input.disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+
+        async function fetchTrace(traceId) {
+            try {
+                const resp = await fetch(`${API}/v1/traces/${traceId}`);
+                const data = await resp.json();
+                renderTrace(data.spans);
+            } catch (e) {
+                console.error('获取追踪失败:', e);
+            }
+        }
+
+        function renderTrace(spans) {
+            const container = document.getElementById('traceWaterfall');
+            const empty = document.getElementById('traceEmpty');
+            const total = document.getElementById('traceTotal');
+            const statusBadge = document.getElementById('traceStatusBadge');
+
+            if (!spans || spans.length === 0) {
+                empty.style.display = 'block';
+                total.textContent = '';
+                statusBadge.textContent = '-';
+                statusBadge.className = 'card-badge neutral';
+                document.getElementById('tokenCount').textContent = '0';
+                document.getElementById('spanCount').textContent = '0';
+                return;
+            }
+
+            empty.style.display = 'none';
+            const maxDuration = Math.max(...spans.map(s => s.duration_ms), 1);
+            const rootSpan = spans.find(s => !s.parent_id) || spans[0];
+            const totalMs = rootSpan.duration_ms;
+            const totalPrompt = spans.reduce((sum, s) => sum + (s.prompt_tokens || 0), 0);
+            const totalCompletion = spans.reduce((sum, s) => sum + (s.completion_tokens || 0), 0);
+            const totalTokens = spans.reduce((sum, s) => sum + (s.total_tokens || 0), 0);
+            const hasError = spans.some(s => s.status === 'error');
+
+            total.textContent = `${totalMs.toFixed(0)}ms · ${spans.length} Span · ${totalTokens} Token`;
+            statusBadge.textContent = hasError ? '异常' : '正常';
+            statusBadge.className = hasError ? 'card-badge error' : 'card-badge success';
+            document.getElementById('tokenCount').textContent = totalTokens;
+            document.getElementById('spanCount').textContent = spans.length;
+
+            container.innerHTML = spans.map(s => {
+                const width = Math.max((s.duration_ms / maxDuration) * 100, 3);
+                const icon = s.status === 'error' ? '❌' : '✅';
+                const cls = s.status === 'error' ? 'error' : 'success';
+                const err = s.error ? ` title="${s.error}"` : '';
+                const tokenInfo = s.total_tokens > 0 ? `<span class="tk">${s.total_tokens}tk (${s.prompt_tokens}→${s.completion_tokens})</span>` : '';
+                return `<div class="trace-row">
+                    <span class="trace-dot ${cls}"></span>
+                    <span class="trace-name">${s.agent_name}</span>
+                    <div class="trace-bar-wrap">
+                        <div class="trace-bar ${cls}" style="width:${width}%"></div>
+                    </div>
+                    <span class="trace-meta"${err}>${s.duration_ms.toFixed(0)}ms${tokenInfo}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function addMessage(role, content, isError = false) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            if (isError) div.classList.add('error');
+            const avatar = role === 'user' ? '👤' : '🤖';
+            div.innerHTML = `<div class="avatar">${avatar}</div>
+                <div class="bubble">
+                    ${content.replace(/\n/g, '<br>')}
+                    <div class="meta">${new Date().toLocaleTimeString()}</div>
+                </div>`;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        function addTyping() {
+            const div = document.createElement('div');
+            div.className = 'typing';
+            div.innerHTML = '<span class="dot-anim"></span><span class="dot-anim"></span><span class="dot-anim"></span>';
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            return div;
+        }
+
+        function newSession() {
+            sessionId = null;
+            msgCount = 0;
+            currentTraceId = null;
+            document.getElementById('messages').innerHTML = `
+                <div class="msg assistant">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">您好！已开启新会话，请问有什么可以帮您的？</div>
+                </div>`;
+            document.getElementById('sessionId').textContent = '-';
+            document.getElementById('traceId').textContent = '-';
+            document.getElementById('compliance').textContent = '-';
+            document.getElementById('msgCount').textContent = '0';
+            document.getElementById('tokenCount').textContent = '0';
+            document.getElementById('spanCount').textContent = '0';
+            document.getElementById('responseTime').textContent = '-';
+            document.getElementById('traceWaterfall').innerHTML = '';
+            document.getElementById('traceEmpty').style.display = 'block';
+            document.getElementById('traceTotal').textContent = '';
+            document.getElementById('traceStatusBadge').textContent = '-';
+            document.getElementById('traceStatusBadge').className = 'card-badge neutral';
+            const compBadge = document.getElementById('complianceBadge');
+            compBadge.textContent = '等待中';
+            compBadge.className = 'card-badge neutral';
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(API + '/v1/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    showUploadToast(`✅ ${file.name} 上传成功，已存入知识库`, 'success');
+                    loadDocuments();
+                } else {
+                    showUploadToast(`❌ ${data.detail || '上传失败'}`, 'error');
+                }
+            } catch (e) {
+                showUploadToast('❌ 上传失败: ' + e.message, 'error');
+            }
+
+            fileInput.value = '';
+        }
+
+        function showUploadToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = 'upload-toast ' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function switchCardTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            });
+            document.querySelectorAll('.card-tab-content').forEach(el => {
+                el.classList.toggle('active', el.id === tabId);
+            });
+        }
+
+        loadDocuments();
+    </script>
+</body>
+</html>

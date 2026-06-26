@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.local
+
+# Node.js
+node_modules/
+
+# Java/Rust
+target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Runtime data
+backend/data/
+data/traces/
+
+# Logs
+*.log
+
+# Documentation
+docs/
+TODO.md
+OPTIMIZATION_RECORD.md
+frontend/chat.html
